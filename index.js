@@ -6,23 +6,50 @@ const server = express();
 server.use(express.json());
 server.use(cors());
 
-server.post('/participantes', () => {
+server.post('/participantes', (req, res) => {
+    const { Username } = req.body;
+
+    if (!Username) {
+        res.status(422).send({error: 'Todos os campos são obrigatórios!'});
+        return
+    }
+    // if (Username está em uso) {
+    //     res.status(409).send({error: 'Nome já está em uso'});
+    //     return;
+    // }
+
+    res.status(201);
+});
+
+server.get('/participantes', (req, res) => {
 
 });
 
-server.get('/participantes', () => {
+server.post('/messages', (req, res) => {
+    const { to, text, type } = req.body;
+    const { from } = req.header.User;
+
+    if (!to || !text) {
+        res.status(422).send({error: 'Todos os campos são obrigatórios!'});
+        return;
+    } else if (type !== 'message' || type !== 'private_message') {
+        res.status(422);
+        return;
+    } 
+    // else if (participante não existente) {
+    //     res.status(422);
+    //     return;
+    // }
+
+    res.status(201);
 
 });
 
-server.post('/messages', () => {
+server.get('/messages', (req, res) => {
 
 });
 
-server.get('/messages', () => {
-
-});
-
-server.post('/status', () => {
+server.post('/status', (req, res) => {
 
 });
 
