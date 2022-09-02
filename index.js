@@ -113,8 +113,38 @@ server.get('/messages', (req, res) => {
 	});
 });
 
-server.post('/status', (req, res) => {
+server.post('/status', async (req, res) => {
+    const user = req.headers.user;
 
+    try {
+        const userStatus = await db.collection("participantes").findOne({name: user});
+        if (!userStatus) {
+            return res.status(404)
+        }
+        await db.colletcion("participantes").updateOne({name: user}, {$set: {
+            lastStatus:Date.now()
+        }});
+        ressendStatus(200);        
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
 });
+
+setInterval(() => {
+    db.collection("participantes").find().toArray().then(resp => {
+        resp.forEach(element => {
+            if (Date.now() - (element.lastStatus) > 15) {
+                db.collection("participantes").deleteOne(element);
+                db.collection("messages").insertOne({
+                    from: element.name,
+                    to: 'Todos',
+                    text: 'sai da sala...',
+                    type: 'message',
+                    time: dayjs().format('HH:mm:ss')
+                });
+            }
+        });
+    });
+}, 15000);
 
 server.listen(5000, () => console.log('Listen on port 5000'));
