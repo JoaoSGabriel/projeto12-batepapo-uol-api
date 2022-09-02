@@ -26,7 +26,7 @@ const messageSchema = joi.object({
     from: joi.string().required(),
     to: joi.string().required(),
     text: joi.string().required(),
-    type: joi.string().required(),
+    type: joi.string().valid('private_message', 'message').required(),
     time: joi.string().required()
 });
 
@@ -84,11 +84,6 @@ server.post('/messages', (req, res) => {
 
     if (validation.error) {
         return res.status(422).send(validation.error.details.map(value => value.message));
-    }
-    if (message.type === 'message' || message.type === 'private_message') {
-        console.log("ok");
-    } else {
-        return res.status(422).send();
     }
     
     db.collection("participantes").findOne({
