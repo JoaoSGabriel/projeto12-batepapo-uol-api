@@ -108,12 +108,12 @@ server.get('/messages', (req, res) => {
     const { limit } = req.query;
 
     db.collection("messages").find().toArray().then(messages => {
+        const usermessage = messages.filter(value => value.to === user || value.to === 'Todos' || value.from === user);
 		if(!limit) {
-            res.send(messages);
-            console.log('enviou todas')
+            res.send(usermessage);
             return;
         }
-        const select = messages.slice(limit * -1)
+        const select = usermessage.slice(limit * -1)
         res.send(select);
 	});
 });
