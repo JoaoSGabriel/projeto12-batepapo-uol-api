@@ -104,7 +104,18 @@ server.post('/messages', (req, res) => {
 });
 
 server.get('/messages', (req, res) => {
-    
+    const user = req.headers.user;
+    const { limit } = req.query;
+
+    db.collection("messages").find().toArray().then(messages => {
+		if(!limit) {
+            res.send(messages);
+            console.log('enviou todas')
+            return;
+        }
+        const select = messages.slice(limit * -1)
+        res.send(select);
+	});
 });
 
 server.post('/status', (req, res) => {
