@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from "dotenv";
 import dayjs from 'dayjs';
+import joi from 'joi';
 import { MongoClient } from 'mongodb';
 dotenv.config();
 
@@ -17,25 +18,46 @@ mongoClient.connect().then(() => {
 	db = mongoClient.db("batepapouol");
 });
 
-server.post('/participantes', (req,res) => {
-    const username = req.body.name;
+const userSchema = joi.object({
+    name: joi.string().required()
+});
 
-    if (!username) {
-        return res.status(422).send({error: 'Todos os campos são obrigatórios!'});
+const messageSchema = joi.object({
+    from: joi.string().required(),
+    to: joi.string().required(),
+    text: joi.string().required(),
+    type: joi.string().required(),
+    time: joi.string().required()
+});
+
+server.post('/participantes', (req,res) => {
+    const username = req.body;
+
+    const validation = userSchema.validate(username);
+
+    if (validation.error) {
+        return res.status(422).send(validation.error.details[0].message);
     }
 
     db.collection("participantes").findOne({
-        name: username
+        username
     }).then(user => {
         if (user === null) {
             db.collection("participantes").insertOne({
-                name: username,
+                ...username,
                 lastStatus: Date.now()
+            });
+            db.collection("messages").insertOne({
+                from: username.name,
+                to: 'Todos',
+                text: 'entra na sala...',
+                type: 'message',
+                time: dayjs().format('HH:mm:ss')
             });
             res.status(201).send("ok");
             return;
         } else {
-            return res.status(409).send({error: 'Este usuário já existe!'});
+            return res.status(409).send();
         }
     });
 })
@@ -50,9 +72,23 @@ server.post('/messages', (req, res) => {
     const { to, text, type } = req.body;
     const from = req.headers.user;
 
-    if (!to || !text) {
-        res.status(422).send({error: 'Todos os campos são obrigatórios!'});
-        return;
+    const message = {
+        from: from,
+        to: to,
+        text: text,
+        type: type,
+        time: dayjs().format('HH:mm:ss')
+    }
+
+    const validation = messageSchema.validate(message, {abortEarly: false});
+
+    if (validation.error) {
+        return res.status(422).send(validation.error.details.map(value => value.message));
+    }
+    if (message.type === 'message' || message.type === 'private_message') {
+        console.log("ok");
+    } else {
+        return res.status(422).send();
     }
     
     db.collection("participantes").findOne({
@@ -61,23 +97,14 @@ server.post('/messages', (req, res) => {
         if (user === null) {
             return res.status(422).send({error: 'Participante não existente'});
         } else {
-            db.collection("messages").insertOne({
-                from: from,
-                to: to,
-                text: text,
-                type: type,
-                time: dayjs().format('HH:mm:ss')
-            });
-            res.status(201).send("ok");
-            return;
+            db.collection("messages").insertOne(message);
+            return res.status(201).send("ok");
         }
     });
 });
 
 server.get('/messages', (req, res) => {
-    db.collection("messages").find().toArray().then(messages => {
-		res.send(messages);
-	});
+    
 });
 
 server.post('/status', (req, res) => {
