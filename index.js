@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from "dotenv";
 import dayjs from 'dayjs';
 import joi from 'joi';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 dotenv.config();
 
 const server = express();
@@ -28,6 +28,13 @@ const messageSchema = joi.object({
     text: joi.string().required(),
     type: joi.string().valid('private_message', 'message').required(),
     time: joi.string().required()
+});
+
+const EditSchema = joi.object({
+    from: joi.string().required(),
+    to: joi.string().required(),
+    text: joi.string().required(),
+    type: joi.string().valid('private_message', 'message').required()
 });
 
 server.post('/participants', async (req,res) => {
@@ -152,5 +159,63 @@ setInterval(() => {
         });
     });
 }, 15000);
+
+/* Parte bônus*/
+
+server.delete('/messages/:id', async (req,res) => {
+    const usermessage = req.headers.user;
+    const {id} = req.params;
+
+    try {
+        const promisse = await db.collection("messages").findOne({_id: new ObjectId(id)});
+        if (!promisse) {
+            return res.sendStatus(404);
+        } else if (promisse.from !== usermessage) {
+            return res.sendStatus(401);
+        }
+
+        await db.collection("messages").deleteOne({_id: new ObjectId(id)});
+
+        res.sendStatus(200);
+    } catch (error) {
+        return res.status(500).send(error.message);
+    }
+});
+
+server.put('/messages/:id', async (req, res) => {
+    const { to, text, type } = req.body;
+    const from = req.headers.user;
+    const {id} = req.params;
+
+    const message = {
+        from: from,
+        to: to,
+        text: text,
+        type: type
+    }
+
+    const validation = EditSchema.validate(message);
+
+    if (validation.error) {
+        return res.status(422).send(validation.error.details.map(value => value.message));
+    }
+
+    try {
+        const promisse = await db.collection("messages").findOne({_id: new ObjectId(id)});
+        if (!promisse) {
+            return res.sendStatus(404);
+        } else if (promisse.from !== from) {
+            return res.sendStatus(401);
+        }
+
+        await db.collection("messages").updateOne({
+            _id: new ObjectId(id)
+        }, {$set: req.body});
+
+        res.sendStatus(200);
+    } catch (error) {
+        return res.status(500).send(error.message);
+    }
+});
 
 server.listen(5000, () => console.log('Listen on port 5000'));
